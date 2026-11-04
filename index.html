@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Surveyor</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f7f8fb;--ink:#14213d;--mut:#5b6475;--ac:#ffc233;--ok:#1b9e77;--card:#fff;--line:#d9deea;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0e1424;--ink:#eef1f8;--mut:#9aa4ba;--card:#171f35;--line:#2a3452;--ok:#3ecf9f;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#0e1424;--ink:#eef1f8;--mut:#9aa4ba;--card:#171f35;--line:#2a3452;--ok:#3ecf9f;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,sans-serif}
+h1,h2,h3,.logo{font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.1}
+header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);border-bottom:1px solid var(--line);display:flex;gap:1rem;align-items:center;flex-wrap:wrap;padding:.7rem 5vw;z-index:5}
+.logo{font-weight:800;font-size:1.4rem}.logo i{display:inline-block;width:.8em;height:.8em;border:3px solid var(--ink);border-radius:50%;background:var(--ac);margin-right:.3em}
+nav{display:flex;gap:1rem;flex:1;flex-wrap:wrap}nav a{color:var(--mut);text-decoration:none}
+section{padding:3rem 5vw;max-width:1100px;margin:auto}
+.hero{display:grid;grid-template-columns:1.3fr 1fr;gap:2rem;align-items:center}@media(max-width:760px){.hero{grid-template-columns:1fr}}
+h1{font-size:clamp(2.4rem,6vw,4.2rem);font-weight:800;margin:0 0 1rem}
+button{font:inherit;font-weight:600;background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:.6rem 1rem;cursor:pointer}
+button.ghost{background:none;color:var(--ink);border:1px solid var(--line)}button.ac{background:var(--ac);color:#14213d}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.2rem;margin:.6rem 0}
+.calc output{display:block;font:800 2.6rem "Bricolage Grotesque",sans-serif;color:var(--ok)}
+input,select,textarea{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:.5rem;width:100%;margin:.25rem 0}
+input[type=radio],input[type=checkbox]{width:auto}label{display:block}.q{margin:1rem 0}.q label{font-weight:400}
+.qrow{display:grid;gap:.3rem;border-left:4px solid var(--ac);padding-left:.8rem;margin:.8rem 0}
+.tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}.tabs button{background:none;color:var(--ink);border:1px solid var(--line)}.tabs button.on{background:var(--ink);color:var(--bg)}
+.warn{border-left:4px solid var(--ac);padding:.6rem 1rem;background:var(--card)}.mut{color:var(--mut)}
+.pane{display:none}.pane.on{display:block}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
+.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid var(--line);padding:.4rem;text-align:left}
+footer{border-top:1px solid var(--line);padding:2rem 5vw;color:var(--mut)}footer a{color:var(--ink);margin-right:1rem}
+#toast{position:fixed;bottom:calc(1rem + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:.6rem 1rem;border-radius:8px;display:none;max-width:90vw}
+</style></head><body>
+<header><span class="logo"><i></i>Surveyor</span>
+<nav><a href="#app">Explore Surveys</a><a href="#app" onclick="tab('create')">Create Survey</a><a href="#how">How it works</a><a href="#faq">FAQ</a></nav>
+<button class="ac" id="cw" onclick="connect()">Connect Wallet</button></header>
+
+<section class="hero"><div><h1>Your Questions. Real Responses. Fair Rewards.</h1>
+<p class="mut">Organizations fund a reward pool, publish a survey on BOT Chain, and split the pool equally among every approved respondent.</p>
+<button class="ac" onclick="tab('explore');location.hash='app'">Explore Surveys</button> <button class="ghost" onclick="tab('create');location.hash='app'">Create Survey</button></div>
+<div class="card calc"><b>Reward calculator</b><label>Reward pool<input id="cp" type="number" value="100" oninput="calc()"></label><label>Valid submissions<input id="cv" type="number" value="200" oninput="calc()"></label><span class="mut">Each valid respondent earns</span><output id="co"></output></div></section>
+
+<section id="how"><h2>How it works</h2><div class="grid">
+<div class="card"><h3>1. Fund</h3><p>Creators deposit BOT or USDT and publish questions with a deadline.</p></div>
+<div class="card"><h3>2. Respond</h3><p>One submission per wallet. Creators approve or reject with a reason; rejected wallets can appeal.</p></div>
+<div class="card"><h3>3. Close and finalize</h3><p>Pool after fee ÷ valid submissions. Any remainder goes one unit each to the earliest approved respondents.</p></div>
+<div class="card"><h3>4. Claim and withdraw</h3><p>Rewards accumulate across campaigns. Withdraw once you pass the minimum.</p></div></div></section>
+
+<section id="app"><h2>Dashboard</h2>
+<div class="card"><b>Connection</b><div class="grid"><label>Surveyor contract<input id="ca" placeholder="0x…"></label><label>BOT Chain ID<input id="ci" type="number" placeholder="chain id"></label></div></div>
+<div class="warn">Privacy: onchain records are public. Never enter passwords, ID documents or private personal details in a survey or an answer.</div><br>
+<div class="tabs" id="tabs"></div>
+<div class="pane" id="p-explore"><div id="list"><p class="mut">Connect your wallet to see surveys.</p></div><div id="answer"></div></div>
+<div class="pane" id="p-create"><div class="card"><h3>New survey</h3>
+<label>Organization name<input id="org"></label><label>Survey title<input id="ttl"></label>
+<div class="grid"><label>Deadline<input id="dl" type="datetime-local"></label><label>Response limit (0 = none)<input id="max" type="number" value="0"></label>
+<label>Reward token<select id="tok"><option value="bot">BOT</option><option value="usdt">USDT</option></select></label><label>Reward pool<input id="amt" type="number" step="any"></label></div>
+<label><input type="checkbox" id="rf" checked> Refund the pool if there are no valid submissions</label>
+<h3>Questions</h3><div id="qb"></div><button class="ghost" onclick="qs.push({t:'text',q:'',o:'',r:true,c:''});qrender()">Add question</button>
+<p><button class="ghost" onclick="draft()">Save draft</button> <button class="ghost" onclick="preview()">Preview</button> <button class="ac" onclick="create()">Fund and publish</button></p><div id="pv"></div></div></div>
+<div class="pane" id="p-mine"><div id="mine"></div></div>
+<div class="pane" id="p-rewards"><div id="rw"></div></div>
+<div class="pane" id="p-admin"><div class="card"><h3>Administration</h3><div class="grid">
+<label>Platform fee (basis points)<input id="af" type="number"></label><label>Minimum BOT withdrawal<input id="am" type="number" step="any"></label><label>Minimum USDT withdrawal<input id="au" type="number" step="any"></label><label>Wallet to ban<input id="ab" placeholder="0x…"></label></div>
+<button onclick="adm()">Save settings</button> <button class="ghost" onclick="banUser()">Ban wallet</button> <button class="ghost" onclick="tx(C.withdrawFees(ZERO))">Collect BOT fees</button> <button class="ghost" onclick="tx(C.withdrawFees(U))">Collect USDT fees</button></div></div></section>
+
+<section><h2>Respondent rewards</h2><p>Every approved respondent receives exactly the same share. Amounts use integer token units, so nothing is lost to rounding.</p>
+<h2>For organizations</h2><p>Publish surveys, review responses, see completion and payout analytics, export CSV, and close campaigns when you are ready.</p></section>
+
+<section id="faq"><h2>FAQ</h2>
+<details><summary>When are rewards paid?</summary><p>Only after the campaign is closed and finalized. Approved respondents then claim and withdraw.</p></details>
+<details><summary>What if nobody is approved?</summary><p>The pool is refunded to the creator if the campaign was set up with that policy.</p></details>
+<details><summary>Is my response private?</summary><p>No. Chain data is public. Use the hash-only option when you want a commitment instead of readable answers.</p></details></section>
+
+<footer><p><a href="https://botchain.ai">BOT Chain Website</a><a href="https://scan.botchain.ai">BOT Chain Explorer</a></p><p><a href="#">Documentation</a><a href="#">About</a><a href="#">Terms</a><a href="#">Privacy</a><a href="#">Copyright</a></p><p>© 2026 Surveyor</p></footer>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),ZERO="0x0000000000000000000000000000000000000000",DEC=6;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ST=["Open","Closed","Finalized"],RS=["None","Submitted","Approved","Rejected","Appealed"];
+const T=[["text","Short text"],["long","Long text"],["single","Single choice"],["multi","Checkboxes"],["drop","Dropdown"],["rating","Rating 1–5"],["yesno","Yes / no"],["number","Number"],["date","Date"]];
+const ABI=["function admin() view returns(address)","function usdt() view returns(address)","function count() view returns(uint256)","function feeBps() view returns(uint16)","function minWithdraw(address) view returns(uint256)","function orgName(address) view returns(string)","function balance(address,address) view returns(uint256)",
+"function surveys(uint256) view returns(address,string,string,uint64,uint32,address,uint256,bool,uint8,uint32,uint256,uint256)","function resps(uint256,address) view returns(string,uint64,uint8,string,uint32,bool)","function getResponders(uint256) view returns(address[])",
+"function registerOrg(string)","function createSurvey(string,string,uint64,uint32,address,uint256,bool) payable returns(uint256)","function submit(uint256,string)","function review(uint256,address,bool,string)","function appeal(uint256)","function close(uint256)","function finalize(uint256)","function claim(uint256)","function withdraw(address,uint256)","function setFee(uint16)","function setMin(address,uint256)","function ban(address,bool)","function withdrawFees(address)"];
+let C,S,me,U,isAdmin=false,isOrg=false,qs=[{t:"text",q:"",o:"",r:true,c:""}];
+const sym=t=>t==ZERO?"BOT":"USDT",fmt=(t,v)=>ethers.utils.formatUnits(v,t==ZERO?18:DEC),pu=(t,v)=>ethers.utils.parseUnits(String(v),t==ZERO?18:DEC);
+function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t.h);t.h=setTimeout(()=>t.style.display="none",4000)}
+const err=e=>toast((e.reason||(e.data&&e.data.message)||e.message||"Failed").slice(0,160));
+async function tx(p){try{const t=await p;toast("Confirming…");await t.wait();toast("Done");return 1}catch(e){err(e)}}
+function calc(){const p=+$("#cp").value,v=+$("#cv").value;$("#co").textContent=v>0?(p/v).toFixed(4).replace(/\.?0+$/,"")+" per respondent":"—"}calc();
+function tab(n){document.querySelectorAll(".pane").forEach(p=>p.classList.toggle("on",p.id=="p-"+n));document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t==n));if(C){({explore,mine:loadMine,rewards:loadRw}[n]||(()=>{}))()}}
+function tabs(){const t=[["explore","Explore"],["create","Create survey"],["mine","My surveys"],["rewards","My rewards"]];if(isAdmin)t.push(["admin","Admin"]);$("#tabs").innerHTML=t.map(x=>`<button data-t="${x[0]}" onclick="tab('${x[0]}')">${x[1]}</button>`).join("")}
+async function connect(){try{if(!window.ethereum)return toast("Install a wallet to continue");const a=$("#ca").value.trim();if(!ethers.utils.isAddress(a))return toast("Enter the Surveyor contract address first");
+const P=new ethers.providers.Web3Provider(window.ethereum);await P.send("eth_requestAccounts",[]);const want=+$("#ci").value;if(want&&(await P.getNetwork()).chainId!==want)return toast("Switch your wallet to BOT Chain");
+S=P.getSigner();me=await S.getAddress();C=new ethers.Contract(a,ABI,S);U=await C.usdt();isAdmin=(await C.admin()).toLowerCase()==me.toLowerCase();isOrg=!!(await C.orgName(me));
+$("#cw").textContent=me.slice(0,6)+"…"+me.slice(-4);tabs();qrender();const h=location.hash.match(/^#s(\d+)$/);tab(isOrg?"mine":"explore");if(h)openS(+h[1])}catch(e){err(e)}}
+async function getS(i){const a=await C.surveys(i);return{id:i,creator:a[0],title:a[1],q:a[2],dl:a[3].toNumber(),max:a[4],token:a[5],pool:a[6],refund:a[7],state:a[8],valid:a[9],per:a[10],rem:a[11]}}
+async function explore(){const n=(await C.count()).toNumber();let h="";for(let i=n-1;i>=0;i--){const s=await getS(i);h+=`<article class="card"><h3>${esc(s.title)}</h3><p class="mut">${fmt(s.token,s.pool)} ${sym(s.token)} pool · ${ST[s.state]} · ends ${new Date(s.dl*1000).toLocaleDateString()}</p><button onclick="openS(${i})">${s.state==0?"Answer":"View"}</button> <button class="ghost" onclick="copyLink(${i})">Copy link</button></article>`}$("#list").innerHTML=h||"<p>No surveys yet. Create the first one.</p>"}
+function copyLink(i){const u=location.href.split("#")[0]+"#s"+i;navigator.clipboard&&navigator.clipboard.writeText(u);toast("Link copied: "+u)}
+function field(q,i){const o=(q.o||"").split(",").map(x=>x.trim()).filter(Boolean),n="q"+i,r=(v,l)=>`<label><input type="radio" name="${n}" value="${esc(v)}"> ${esc(l||v)}</label>`;let f="";
+switch(q.t){case"text":f=`<input name="${n}">`;break;case"long":f=`<textarea name="${n}"></textarea>`;break;case"number":f=`<input type="number" name="${n}">`;break;case"date":f=`<input type="date" name="${n}">`;break;
+case"yesno":f=r("Yes")+r("No");break;case"single":f=o.map(v=>r(v)).join("");break;case"rating":f=[1,2,3,4,5].map(v=>r(v)).join("");break;
+case"multi":f=o.map(v=>`<label><input type="checkbox" name="${n}" value="${esc(v)}"> ${esc(v)}</label>`).join("");break;
+case"drop":f=`<select name="${n}"><option value="">Choose</option>${o.map(v=>`<option>${esc(v)}</option>`).join("")}</select>`}
+return`<div class="q" data-i="${i}"><b>${esc(q.q)}${q.r?" *":""}</b>${f}</div>`}
+function form(qq,id){return`<form id="${id}" onchange="cond(this,${id=="af2"?"QS":"qs"})">${qq.map(field).join("")}</form>`}
+function val(f,i){const e=[...f.querySelectorAll(`[name=q${i}]`)].filter(x=>!/radio|checkbox/.test(x.type)||x.checked).map(x=>x.value);return e.length>1?e.join("; "):(e[0]||"")}
+function cond(f,qq){qq.forEach((q,i)=>{const m=(q.c||"").match(/^(\d+)=(.+)$/),d=f.querySelector(`.q[data-i="${i}"]`);if(m&&d)d.hidden=val(f,m[1]-1)!=m[2].trim()})}
+function collect(f,qq){const a=[];for(let i=0;i<qq.length;i++){const d=f.querySelector(`.q[data-i="${i}"]`),v=d.hidden?"":val(f,i);if(qq[i].r&&!d.hidden&&!v)throw new Error("Answer question "+(i+1));a.push(v)}return a}
+let QS=[],CUR=0;
+async function openS(i){const s=await getS(i),r=await C.resps(i,me);CUR=i;try{QS=JSON.parse(s.q)}catch{QS=[]}
+$("#answer").innerHTML=`<div class="card"><h3>${esc(s.title)}</h3><p class="mut">${fmt(s.token,s.pool)} ${sym(s.token)} pool · ${ST[s.state]} · you: ${RS[r[2]]}</p>`+(s.state==0&&r[2]==0&&s.creator!=me?form(QS,"af2")+`<label><input type="checkbox" id="hs"> Store only a hash of my answers</label><button class="ac" onclick="sub()">Submit response</button>`:"")+"</div>";$("#answer").scrollIntoView()}
+async function sub(){try{const a=collect($("#af2"),QS),j=JSON.stringify(a);if(await tx(C.submit(CUR,$("#hs").checked?"h:"+ethers.utils.id(j):j)))openS(CUR)}catch(e){err(e)}}
+function qrender(){$("#qb").innerHTML=qs.map((q,i)=>`<div class="qrow"><select onchange="qs[${i}].t=this.value">${T.map(t=>`<option value="${t[0]}"${q.t==t[0]?" selected":""}>${t[1]}</option>`).join("")}</select><input placeholder="Question" value="${esc(q.q)}" oninput="qs[${i}].q=this.value"><input placeholder="Options, comma separated" value="${esc(q.o)}" oninput="qs[${i}].o=this.value"><input placeholder="Show only if, e.g. 1=Yes" value="${esc(q.c)}" oninput="qs[${i}].c=this.value"><label><input type="checkbox" ${q.r?"checked":""} onchange="qs[${i}].r=this.checked"> Required</label><button class="ghost" onclick="qs.splice(${i},1);qrender()">Remove</button></div>`).join("")}
+function preview(){$("#pv").innerHTML="<h3>Preview</h3>"+form(qs,"pf")}
+function draft(){try{localStorage.setItem("surveyor-draft",JSON.stringify({qs,t:$("#ttl").value}));toast("Draft saved in this browser")}catch{toast("Draft storage unavailable")}}
+try{const d=JSON.parse(localStorage.getItem("surveyor-draft")||"null");if(d){qs=d.qs;$("#ttl").value=d.t||""}}catch{}
+async function create(){try{const tok=$("#tok").value=="usdt"?U:ZERO,amt=pu(tok,$("#amt").value),org=$("#org").value.trim();
+if(!org&&!isOrg)return toast("Enter your organization name");if(org&&org!=await C.orgName(me))if(!await tx(C.registerOrg(org)))return;
+if(tok!=ZERO&&!await tx(new ethers.Contract(tok,["function approve(address,uint256) returns(bool)"],S).approve(C.address,amt)))return;
+const dl=Math.floor(new Date($("#dl").value)/1000);if(await tx(C.createSurvey($("#ttl").value,JSON.stringify(qs),dl,+$("#max").value||0,tok,amt,$("#rf").checked,{value:tok==ZERO?amt:0}))){isOrg=true;tab("mine")}}catch(e){err(e)}}
+async function loadMine(){const n=(await C.count()).toNumber();let h="";for(let i=n-1;i>=0;i--){const s=await getS(i);if(s.creator.toLowerCase()!=me.toLowerCase())continue;
+const ad=await C.getResponders(i),rows=[];let sub=0,ok=0,no=0;for(const a of ad){const r=await C.resps(i,a);rows.push([a,r]);if(r[2]==2)ok++;else if(r[2]==3)no++;else sub++}
+h+=`<div class="card"><h3>${esc(s.title)}</h3><p class="mut">${ST[s.state]} · pool ${fmt(s.token,s.pool)} ${sym(s.token)} · ${ad.length} submitted · ${ok} valid · ${no} rejected · ${sub} pending · completion ${ad.length&&s.max?Math.round(ad.length/s.max*100)+"%":"n/a"}${s.state==2?" · each "+fmt(s.token,s.per)+" (+1 unit to first "+s.rem+")":""}</p>
+<div class="scroll"><table><tr><th>Wallet</th><th>Status</th><th>Answers</th><th></th></tr>${rows.map(([a,r])=>`<tr><td>${a.slice(0,8)}…</td><td>${RS[r[2]]}${r[3]?" ("+esc(r[3])+")":""}</td><td>${esc(r[0]).slice(0,80)}</td><td>${s.state!=2&&(r[2]==1)?`<button onclick="rev(${i},'${a}',true)">Approve</button> <button class="ghost" onclick="rev(${i},'${a}',false)">Reject</button>`:""}</td></tr>`).join("")}</table></div>
+<p>${s.state==0?`<button onclick="tx(C.close(${i}))">Close survey</button> `:""}${s.state==1?`<button class="ac" onclick="tx(C.finalize(${i}))">Finalize rewards</button> `:""}<button class="ghost" onclick='csv(${i},${JSON.stringify(rows.map(([a,r])=>[a,r[1].toString(),RS[r[2]],r[0]]))})'>Export CSV</button> <button class="ghost" onclick="copyLink(${i})">Copy link</button></p></div>`}
+$("#mine").innerHTML=h||"<p>You have not published a survey yet.</p>"}
+async function rev(i,a,ok){const why=ok?"":prompt("Reason for rejection")||"Rejected";if(await tx(C.review(i,a,ok,why)))loadMine()}
+function csv(i,rows){const q=c=>'"'+String(c).replace(/"/g,'""')+'"',t=["wallet,timestamp,status,answers",...rows.map(r=>r.map(q).join(","))].join("\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv"}));a.download=`survey-${i}.csv`;a.click()}
+async function loadRw(){const n=(await C.count()).toNumber();let rows="";for(let i=n-1;i>=0;i--){const r=await C.resps(i,me);if(r[2]==0)continue;const s=await getS(i);
+rows+=`<tr><td>${esc(s.title)}</td><td>${RS[r[2]]}${r[3]?" ("+esc(r[3])+")":""}</td><td>${s.state==2&&r[2]==2?(r[5]?"Claimed":`<button onclick="tx(C.claim(${i}))">Claim reward</button>`):r[2]==3&&s.state!=2?`<button class="ghost" onclick="tx(C.appeal(${i}))">Appeal</button>`:""}</td></tr>`}
+const [bb,bu,mb,mu]=await Promise.all([C.balance(me,ZERO),C.balance(me,U),C.minWithdraw(ZERO),C.minWithdraw(U)]);
+$("#rw").innerHTML=`<div class="card"><h3>Balance</h3><p>${fmt(ZERO,bb)} BOT (minimum ${fmt(ZERO,mb)}) · ${fmt(U,bu)} USDT (minimum ${fmt(U,mu)})</p><select id="wt"><option value="bot">BOT</option><option value="usdt">USDT</option></select><input id="wa" type="number" step="any" placeholder="Amount"><button class="ac" onclick="wd()">Request withdrawal</button></div>
+<div class="card scroll"><h3>My submissions</h3><table><tr><th>Survey</th><th>Status</th><th></th></tr>${rows||"<tr><td>No submissions yet</td></tr>"}</table></div>`}
+async function wd(){const t=$("#wt").value=="usdt"?U:ZERO;if(await tx(C.withdraw(t,pu(t,$("#wa").value))))loadRw()}
+async function adm(){const f=$("#af").value,b=$("#am").value,u=$("#au").value;if(f)await tx(C.setFee(+f));if(b)await tx(C.setMin(ZERO,pu(ZERO,b)));if(u)await tx(C.setMin(U,pu(U,u)))}
+function banUser(){tx(C.ban($("#ab").value.trim(),true))}
+qrender();
+</script></body></html>
