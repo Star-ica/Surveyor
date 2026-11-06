@@ -47,10 +47,10 @@ footer{border-top:1px solid var(--line);padding:2rem 5vw;color:var(--mut)}footer
 <div class="card"><h3>4. Claim and withdraw</h3><p>Rewards accumulate across campaigns. Withdraw once you pass the minimum.</p></div></div></section>
 
 <section id="app"><h2>Dashboard</h2>
-<div class="card"><b>Connection</b><div class="grid"><label>Surveyor contract<input id="ca" placeholder="0x…"></label><label>BOT Chain ID<input id="ci" type="number" placeholder="chain id"></label></div></div>
+<div class="card"><b>Network</b><p class="mut" style="margin:.3rem 0 0">BOT Chain Mainnet (677) · Contract <a id="cl" target="_blank" rel="noopener" style="color:var(--ink)"></a></p></div>
 <div class="warn">Privacy: onchain records are public. Never enter passwords, ID documents or private personal details in a survey or an answer.</div><br>
 <div class="tabs" id="tabs"></div>
-<div class="pane" id="p-explore"><div id="list"><p class="mut">Connect your wallet to see surveys.</p></div><div id="answer"></div></div>
+<div class="pane" id="p-explore"><div id="list"><p class="mut">Loading surveys from BOT Chain…</p></div><div id="answer"></div></div>
 <div class="pane" id="p-create"><div class="card"><h3>New survey</h3>
 <label>Organization name<input id="org"></label><label>Survey title<input id="ttl"></label>
 <div class="grid"><label>Deadline<input id="dl" type="datetime-local"></label><label>Response limit (0 = none)<input id="max" type="number" value="0"></label>
@@ -61,8 +61,8 @@ footer{border-top:1px solid var(--line);padding:2rem 5vw;color:var(--mut)}footer
 <div class="pane" id="p-mine"><div id="mine"></div></div>
 <div class="pane" id="p-rewards"><div id="rw"></div></div>
 <div class="pane" id="p-admin"><div class="card"><h3>Administration</h3><div class="grid">
-<label>Platform fee (basis points)<input id="af" type="number"></label><label>Minimum BOT withdrawal<input id="am" type="number" step="any"></label><label>Minimum USDT withdrawal<input id="au" type="number" step="any"></label><label>Wallet to ban<input id="ab" placeholder="0x…"></label></div>
-<button onclick="adm()">Save settings</button> <button class="ghost" onclick="banUser()">Ban wallet</button> <button class="ghost" onclick="tx(C.withdrawFees(ZERO))">Collect BOT fees</button> <button class="ghost" onclick="tx(C.withdrawFees(U))">Collect USDT fees</button></div></div></section>
+<label>Platform fee (basis points)<input id="af" type="number"></label><label>Minimum BOT withdrawal<input id="am" type="number" step="any"></label><label class="usdt-only">Minimum USDT withdrawal<input id="au" type="number" step="any"></label><label>Wallet to ban<input id="ab" placeholder="0x…"></label></div>
+<button onclick="adm()">Save settings</button> <button class="ghost" onclick="banUser()">Ban wallet</button> <button class="ghost" onclick="tx(C.withdrawFees(ZERO))">Collect BOT fees</button> <button class="ghost usdt-only" onclick="tx(C.withdrawFees(U))">Collect USDT fees</button></div></div></section>
 
 <section><h2>Respondent rewards</h2><p>Every approved respondent receives exactly the same share. Amounts use integer token units, so nothing is lost to rounding.</p>
 <h2>For organizations</h2><p>Publish surveys, review responses, see completion and payout analytics, export CSV, and close campaigns when you are ready.</p></section>
@@ -72,30 +72,48 @@ footer{border-top:1px solid var(--line);padding:2rem 5vw;color:var(--mut)}footer
 <details><summary>What if nobody is approved?</summary><p>The pool is refunded to the creator if the campaign was set up with that policy.</p></details>
 <details><summary>Is my response private?</summary><p>No. Chain data is public. Use the hash-only option when you want a commitment instead of readable answers.</p></details></section>
 
-<footer><p><a href="https://botchain.ai">BOT Chain Website</a><a href="https://scan.botchain.ai">BOT Chain Explorer</a></p><p><a href="#">Documentation</a><a href="#">About</a><a href="#">Terms</a><a href="#">Privacy</a><a href="#">Copyright</a></p><p>© 2026 Surveyor</p></footer>
+<footer><p><a href="https://botchain.ai" target="_blank" rel="noopener">BOT Chain Website</a><a href="https://scan.botchain.ai/address/0x2677EA9CCc60eB9E70b6ae441C29F597E5eAb43d" target="_blank" rel="noopener">BOT Chain Explorer</a></p><p><a href="#">Documentation</a><a href="#">About</a><a href="#">Terms</a><a href="#">Privacy</a><a href="#">Copyright</a></p><p>© 2026 Surveyor</p></footer>
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
 <script>
-const $=s=>document.querySelector(s),ZERO="0x0000000000000000000000000000000000000000",DEC=6;
+const $=s=>document.querySelector(s),ZERO="0x0000000000000000000000000000000000000000";let DEC=6;
+// BOT Chain mainnet
+const ADDR="0x2677EA9CCc60eB9E70b6ae441C29F597E5eAb43d",CHAIN_ID=677,CHAIN_HEX="0x2a5",RPC="https://rpc.botchain.ai",EXPLORER="https://scan.botchain.ai";
+const RP=new ethers.providers.StaticJsonRpcProvider(RPC,{chainId:CHAIN_ID,name:"botchain"});
+const withTimeout=(p,ms,m)=>Promise.race([p,new Promise((_,j)=>setTimeout(()=>j(new Error(m)),ms))]);
+const cleanRevert=e=>{const m=(e&&(e.error&&e.error.message||e.reason||e.data&&e.data.message||e.message))||String(e),r=m.match(/reverted(?: with reason string)?:?\s*'?"?([^"'\n]+)/i);return r?r[1].trim():m};
+async function ensureChain(){if(parseInt(await ethereum.request({method:"eth_chainId"}),16)===CHAIN_ID)return;
+try{await ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:CHAIN_HEX}]})}catch(e){if(e.code===4902||e.code===-32603||/unrecognized|not been added/i.test(e.message||""))await ethereum.request({method:"wallet_addEthereumChain",params:[{chainId:CHAIN_HEX,chainName:"BOT Chain Mainnet",nativeCurrency:{name:"BOT",symbol:"BOT",decimals:18},rpcUrls:[RPC],blockExplorerUrls:[EXPLORER]}]});else throw e}}
+// Signer that reads through BOT Chain's RPC and only uses the wallet to send: estimate first (shows the contract's revert reason), then eth_sendTransaction
+class BotSigner extends ethers.Signer{constructor(a){super();this._a=a;ethers.utils.defineReadOnly(this,"provider",RP)}
+getAddress(){return Promise.resolve(this._a)}connect(){return this}signMessage(m){return ethereum.request({method:"personal_sign",params:[ethers.utils.hexlify(typeof m=="string"?ethers.utils.toUtf8Bytes(m):m),this._a]})}signTransaction(){throw new Error("not supported")}
+async sendTransaction(t){t=await ethers.utils.resolveProperties(t);await withTimeout(ensureChain(),60000,"Approve the switch to BOT Chain in your wallet");
+const q={from:this._a,to:t.to,data:t.data||"0x",value:ethers.BigNumber.from(t.value||0)};let g;try{g=await RP.estimateGas(q)}catch(e){throw new Error(cleanRevert(e))}
+toast("Confirm in your wallet…");const hash=await ethereum.request({method:"eth_sendTransaction",params:[{from:q.from,to:q.to,data:q.data,value:q.value.toHexString(),gas:g.mul(12).div(10).toHexString()}]});
+return{hash,wait:async()=>{const r=await RP.waitForTransaction(hash,1,180000);if(!r)throw new Error("Not confirmed within 3 minutes. Check "+EXPLORER+"/tx/"+hash);if(r.status!==1)throw new Error("Transaction reverted");return r}}}}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ST=["Open","Closed","Finalized"],RS=["None","Submitted","Approved","Rejected","Appealed"];
 const T=[["text","Short text"],["long","Long text"],["single","Single choice"],["multi","Checkboxes"],["drop","Dropdown"],["rating","Rating 1–5"],["yesno","Yes / no"],["number","Number"],["date","Date"]];
 const ABI=["function admin() view returns(address)","function usdt() view returns(address)","function count() view returns(uint256)","function feeBps() view returns(uint16)","function minWithdraw(address) view returns(uint256)","function orgName(address) view returns(string)","function balance(address,address) view returns(uint256)",
 "function surveys(uint256) view returns(address,string,string,uint64,uint32,address,uint256,bool,uint8,uint32,uint256,uint256)","function resps(uint256,address) view returns(string,uint64,uint8,string,uint32,bool)","function getResponders(uint256) view returns(address[])",
 "function registerOrg(string)","function createSurvey(string,string,uint64,uint32,address,uint256,bool) payable returns(uint256)","function submit(uint256,string)","function review(uint256,address,bool,string)","function appeal(uint256)","function close(uint256)","function finalize(uint256)","function claim(uint256)","function withdraw(address,uint256)","function setFee(uint16)","function setMin(address,uint256)","function ban(address,bool)","function withdrawFees(address)"];
-let C,S,me,U,isAdmin=false,isOrg=false,qs=[{t:"text",q:"",o:"",r:true,c:""}];
-const sym=t=>t==ZERO?"BOT":"USDT",fmt=(t,v)=>ethers.utils.formatUnits(v,t==ZERO?18:DEC),pu=(t,v)=>ethers.utils.parseUnits(String(v),t==ZERO?18:DEC);
+let C=null,S,me=null,U=ZERO,isAdmin=false,isOrg=false,busy=false,ROWS={},qs=[{t:"text",q:"",o:"",r:true,c:""}];
+const hasU=()=>U&&U!=ZERO,sym=t=>t==ZERO?"BOT":"USDT",fmt=(t,v)=>ethers.utils.formatUnits(v,t==ZERO?18:DEC),pu=(t,v)=>ethers.utils.parseUnits(String(v),t==ZERO?18:DEC);
 function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t.h);t.h=setTimeout(()=>t.style.display="none",4000)}
-const err=e=>toast((e.reason||(e.data&&e.data.message)||e.message||"Failed").slice(0,160));
-async function tx(p){try{const t=await p;toast("Confirming…");await t.wait();toast("Done");return 1}catch(e){err(e)}}
+const err=e=>toast(cleanRevert(e).slice(0,160));
+async function tx(p){if(busy){toast("Another transaction is still pending");return}busy=true;try{const t=await p;toast("Confirming on BOT Chain…");await t.wait();toast("Done");return 1}catch(e){err(e)}finally{busy=false}}
+const needWallet=()=>{if(!me){toast("Connect your wallet first");return 1}};
 function calc(){const p=+$("#cp").value,v=+$("#cv").value;$("#co").textContent=v>0?(p/v).toFixed(4).replace(/\.?0+$/,"")+" per respondent":"—"}calc();
 function tab(n){document.querySelectorAll(".pane").forEach(p=>p.classList.toggle("on",p.id=="p-"+n));document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t==n));if(C){({explore,mine:loadMine,rewards:loadRw}[n]||(()=>{}))()}}
 function tabs(){const t=[["explore","Explore"],["create","Create survey"],["mine","My surveys"],["rewards","My rewards"]];if(isAdmin)t.push(["admin","Admin"]);$("#tabs").innerHTML=t.map(x=>`<button data-t="${x[0]}" onclick="tab('${x[0]}')">${x[1]}</button>`).join("")}
-async function connect(){try{if(!window.ethereum)return toast("Install a wallet to continue");const a=$("#ca").value.trim();if(!ethers.utils.isAddress(a))return toast("Enter the Surveyor contract address first");
-const P=new ethers.providers.Web3Provider(window.ethereum);await P.send("eth_requestAccounts",[]);const want=+$("#ci").value;if(want&&(await P.getNetwork()).chainId!==want)return toast("Switch your wallet to BOT Chain");
-S=P.getSigner();me=await S.getAddress();C=new ethers.Contract(a,ABI,S);U=await C.usdt();isAdmin=(await C.admin()).toLowerCase()==me.toLowerCase();isOrg=!!(await C.orgName(me));
-$("#cw").textContent=me.slice(0,6)+"…"+me.slice(-4);tabs();qrender();const h=location.hash.match(/^#s(\d+)$/);tab(isOrg?"mine":"explore");if(h)openS(+h[1])}catch(e){err(e)}}
+async function connect(quiet){try{if(!window.ethereum){if(!quiet)toast("Install a wallet to continue");return}
+const acc=await withTimeout(ethereum.request({method:quiet?"eth_accounts":"eth_requestAccounts"}),quiet?5000:60000,"Wallet did not respond. Open it from the toolbar and clear pending requests.");if(!acc||!acc.length)return;
+me=ethers.utils.getAddress(acc[0]);S=new BotSigner(me);C=new ethers.Contract(ADDR,ABI,S);
+[isAdmin,isOrg]=await Promise.all([C.admin().then(a=>a.toLowerCase()==me.toLowerCase()),C.orgName(me).then(n=>!!n)]);
+$("#cw").textContent=me.slice(0,6)+"…"+me.slice(-4);if(ethereum.on&&!connect.l){connect.l=1;ethereum.on("accountsChanged",()=>location.reload())}
+tabs();qrender();const h=location.hash.match(/^#s(\d+)$/);tab(isOrg&&!h?"mine":"explore");if(h)openS(+h[1]);
+if(!quiet)withTimeout(ensureChain(),60000,"switch").catch(()=>toast("Switch your wallet to BOT Chain (677) before sending transactions"))}catch(e){if(!quiet)err(e)}}
 async function getS(i){const a=await C.surveys(i);return{id:i,creator:a[0],title:a[1],q:a[2],dl:a[3].toNumber(),max:a[4],token:a[5],pool:a[6],refund:a[7],state:a[8],valid:a[9],per:a[10],rem:a[11]}}
 async function explore(){const n=(await C.count()).toNumber();let h="";for(let i=n-1;i>=0;i--){const s=await getS(i);h+=`<article class="card"><h3>${esc(s.title)}</h3><p class="mut">${fmt(s.token,s.pool)} ${sym(s.token)} pool · ${ST[s.state]} · ends ${new Date(s.dl*1000).toLocaleDateString()}</p><button onclick="openS(${i})">${s.state==0?"Answer":"View"}</button> <button class="ghost" onclick="copyLink(${i})">Copy link</button></article>`}$("#list").innerHTML=h||"<p>No surveys yet. Create the first one.</p>"}
 function copyLink(i){const u=location.href.split("#")[0]+"#s"+i;navigator.clipboard&&navigator.clipboard.writeText(u);toast("Link copied: "+u)}
@@ -110,32 +128,38 @@ function val(f,i){const e=[...f.querySelectorAll(`[name=q${i}]`)].filter(x=>!/ra
 function cond(f,qq){qq.forEach((q,i)=>{const m=(q.c||"").match(/^(\d+)=(.+)$/),d=f.querySelector(`.q[data-i="${i}"]`);if(m&&d)d.hidden=val(f,m[1]-1)!=m[2].trim()})}
 function collect(f,qq){const a=[];for(let i=0;i<qq.length;i++){const d=f.querySelector(`.q[data-i="${i}"]`),v=d.hidden?"":val(f,i);if(qq[i].r&&!d.hidden&&!v)throw new Error("Answer question "+(i+1));a.push(v)}return a}
 let QS=[],CUR=0;
-async function openS(i){const s=await getS(i),r=await C.resps(i,me);CUR=i;try{QS=JSON.parse(s.q)}catch{QS=[]}
-$("#answer").innerHTML=`<div class="card"><h3>${esc(s.title)}</h3><p class="mut">${fmt(s.token,s.pool)} ${sym(s.token)} pool · ${ST[s.state]} · you: ${RS[r[2]]}</p>`+(s.state==0&&r[2]==0&&s.creator!=me?form(QS,"af2")+`<label><input type="checkbox" id="hs"> Store only a hash of my answers</label><button class="ac" onclick="sub()">Submit response</button>`:"")+"</div>";$("#answer").scrollIntoView()}
-async function sub(){try{const a=collect($("#af2"),QS),j=JSON.stringify(a);if(await tx(C.submit(CUR,$("#hs").checked?"h:"+ethers.utils.id(j):j)))openS(CUR)}catch(e){err(e)}}
+async function openS(i){const s=await getS(i),r=me?await C.resps(i,me):["",0,0,"",0,false];CUR=i;try{QS=JSON.parse(s.q)}catch{QS=[]}
+$("#answer").innerHTML=`<div class="card"><h3>${esc(s.title)}</h3><p class="mut">${fmt(s.token,s.pool)} ${sym(s.token)} pool · ${ST[s.state]} · you: ${RS[r[2]]}</p>`+(s.state==0&&r[2]==0&&s.creator!=me?form(QS,"af2")+`<label><input type="checkbox" id="hs"> Store only a hash of my answers</label><button class="ac" onclick="sub()">${me?"Submit response":"Connect wallet to submit"}</button>`:"")+"</div>";$("#answer").scrollIntoView()}
+async function sub(){if(!me)return connect();try{const a=collect($("#af2"),QS),j=JSON.stringify(a);if(await tx(C.submit(CUR,$("#hs").checked?"h:"+ethers.utils.id(j):j)))openS(CUR)}catch(e){err(e)}}
 function qrender(){$("#qb").innerHTML=qs.map((q,i)=>`<div class="qrow"><select onchange="qs[${i}].t=this.value">${T.map(t=>`<option value="${t[0]}"${q.t==t[0]?" selected":""}>${t[1]}</option>`).join("")}</select><input placeholder="Question" value="${esc(q.q)}" oninput="qs[${i}].q=this.value"><input placeholder="Options, comma separated" value="${esc(q.o)}" oninput="qs[${i}].o=this.value"><input placeholder="Show only if, e.g. 1=Yes" value="${esc(q.c)}" oninput="qs[${i}].c=this.value"><label><input type="checkbox" ${q.r?"checked":""} onchange="qs[${i}].r=this.checked"> Required</label><button class="ghost" onclick="qs.splice(${i},1);qrender()">Remove</button></div>`).join("")}
 function preview(){$("#pv").innerHTML="<h3>Preview</h3>"+form(qs,"pf")}
 function draft(){try{localStorage.setItem("surveyor-draft",JSON.stringify({qs,t:$("#ttl").value}));toast("Draft saved in this browser")}catch{toast("Draft storage unavailable")}}
 try{const d=JSON.parse(localStorage.getItem("surveyor-draft")||"null");if(d){qs=d.qs;$("#ttl").value=d.t||""}}catch{}
-async function create(){try{const tok=$("#tok").value=="usdt"?U:ZERO,amt=pu(tok,$("#amt").value),org=$("#org").value.trim();
+async function create(){if(needWallet())return;try{if(!$("#ttl").value.trim())return toast("Enter a survey title");if(!$("#dl").value)return toast("Pick a deadline");if(!(+$("#amt").value>0))return toast("Enter the reward pool");const tok=$("#tok").value=="usdt"?U:ZERO,amt=pu(tok,$("#amt").value),org=$("#org").value.trim();
 if(!org&&!isOrg)return toast("Enter your organization name");if(org&&org!=await C.orgName(me))if(!await tx(C.registerOrg(org)))return;
 if(tok!=ZERO&&!await tx(new ethers.Contract(tok,["function approve(address,uint256) returns(bool)"],S).approve(C.address,amt)))return;
 const dl=Math.floor(new Date($("#dl").value)/1000);if(await tx(C.createSurvey($("#ttl").value,JSON.stringify(qs),dl,+$("#max").value||0,tok,amt,$("#rf").checked,{value:tok==ZERO?amt:0}))){isOrg=true;tab("mine")}}catch(e){err(e)}}
-async function loadMine(){const n=(await C.count()).toNumber();let h="";for(let i=n-1;i>=0;i--){const s=await getS(i);if(s.creator.toLowerCase()!=me.toLowerCase())continue;
-const ad=await C.getResponders(i),rows=[];let sub=0,ok=0,no=0;for(const a of ad){const r=await C.resps(i,a);rows.push([a,r]);if(r[2]==2)ok++;else if(r[2]==3)no++;else sub++}
+async function loadMine(){if(!me){$("#mine").innerHTML="<p>Connect your wallet to see your surveys.</p>";return}const n=(await C.count()).toNumber();let h="";for(let i=n-1;i>=0;i--){const s=await getS(i);if(s.creator.toLowerCase()!=me.toLowerCase())continue;
+const ad=await C.getResponders(i),rows=[];ROWS[i]=rows;let sub=0,ok=0,no=0;for(const a of ad){const r=await C.resps(i,a);rows.push([a,r]);if(r[2]==2)ok++;else if(r[2]==3)no++;else sub++}
 h+=`<div class="card"><h3>${esc(s.title)}</h3><p class="mut">${ST[s.state]} · pool ${fmt(s.token,s.pool)} ${sym(s.token)} · ${ad.length} submitted · ${ok} valid · ${no} rejected · ${sub} pending · completion ${ad.length&&s.max?Math.round(ad.length/s.max*100)+"%":"n/a"}${s.state==2?" · each "+fmt(s.token,s.per)+" (+1 unit to first "+s.rem+")":""}</p>
-<div class="scroll"><table><tr><th>Wallet</th><th>Status</th><th>Answers</th><th></th></tr>${rows.map(([a,r])=>`<tr><td>${a.slice(0,8)}…</td><td>${RS[r[2]]}${r[3]?" ("+esc(r[3])+")":""}</td><td>${esc(r[0]).slice(0,80)}</td><td>${s.state!=2&&(r[2]==1)?`<button onclick="rev(${i},'${a}',true)">Approve</button> <button class="ghost" onclick="rev(${i},'${a}',false)">Reject</button>`:""}</td></tr>`).join("")}</table></div>
-<p>${s.state==0?`<button onclick="tx(C.close(${i}))">Close survey</button> `:""}${s.state==1?`<button class="ac" onclick="tx(C.finalize(${i}))">Finalize rewards</button> `:""}<button class="ghost" onclick='csv(${i},${JSON.stringify(rows.map(([a,r])=>[a,r[1].toString(),RS[r[2]],r[0]]))})'>Export CSV</button> <button class="ghost" onclick="copyLink(${i})">Copy link</button></p></div>`}
+<div class="scroll"><table><tr><th>Wallet</th><th>Status</th><th>Answers</th><th></th></tr>${rows.map(([a,r])=>`<tr><td>${a.slice(0,8)}…</td><td>${RS[r[2]]}${r[3]?" ("+esc(r[3])+")":""}</td><td>${esc(String(r[0]).slice(0,80))}</td><td>${s.state!=2&&(r[2]==1)?`<button onclick="rev(${i},'${a}',true)">Approve</button> <button class="ghost" onclick="rev(${i},'${a}',false)">Reject</button>`:""}</td></tr>`).join("")}</table></div>
+<p>${s.state==0?`<button onclick="tx(C.close(${i}))">Close survey</button> `:""}${s.state==1?`<button class="ac" onclick="tx(C.finalize(${i}))">Finalize rewards</button> `:""}<button class="ghost" onclick="csv(${i})">Export CSV</button> <button class="ghost" onclick="copyLink(${i})">Copy link</button></p></div>`}
 $("#mine").innerHTML=h||"<p>You have not published a survey yet.</p>"}
 async function rev(i,a,ok){const why=ok?"":prompt("Reason for rejection")||"Rejected";if(await tx(C.review(i,a,ok,why)))loadMine()}
-function csv(i,rows){const q=c=>'"'+String(c).replace(/"/g,'""')+'"',t=["wallet,timestamp,status,answers",...rows.map(r=>r.map(q).join(","))].join("\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv"}));a.download=`survey-${i}.csv`;a.click()}
-async function loadRw(){const n=(await C.count()).toNumber();let rows="";for(let i=n-1;i>=0;i--){const r=await C.resps(i,me);if(r[2]==0)continue;const s=await getS(i);
+function csv(i){const rows=(ROWS[i]||[]).map(([a,r])=>[a,new Date(r[1]*1000).toISOString(),RS[r[2]],r[0]]),q=c=>'"'+String(c).replace(/"/g,'""')+'"',t=["wallet,timestamp,status,answers",...rows.map(r=>r.map(q).join(","))].join("\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv"}));a.download=`survey-${i}.csv`;a.click()}
+async function loadRw(){if(!me){$("#rw").innerHTML="<p>Connect your wallet to see your rewards.</p>";return}const n=(await C.count()).toNumber();let rows="";for(let i=n-1;i>=0;i--){const r=await C.resps(i,me);if(r[2]==0)continue;const s=await getS(i);
 rows+=`<tr><td>${esc(s.title)}</td><td>${RS[r[2]]}${r[3]?" ("+esc(r[3])+")":""}</td><td>${s.state==2&&r[2]==2?(r[5]?"Claimed":`<button onclick="tx(C.claim(${i}))">Claim reward</button>`):r[2]==3&&s.state!=2?`<button class="ghost" onclick="tx(C.appeal(${i}))">Appeal</button>`:""}</td></tr>`}
-const [bb,bu,mb,mu]=await Promise.all([C.balance(me,ZERO),C.balance(me,U),C.minWithdraw(ZERO),C.minWithdraw(U)]);
-$("#rw").innerHTML=`<div class="card"><h3>Balance</h3><p>${fmt(ZERO,bb)} BOT (minimum ${fmt(ZERO,mb)}) · ${fmt(U,bu)} USDT (minimum ${fmt(U,mu)})</p><select id="wt"><option value="bot">BOT</option><option value="usdt">USDT</option></select><input id="wa" type="number" step="any" placeholder="Amount"><button class="ac" onclick="wd()">Request withdrawal</button></div>
+const [bb,bu,mb,mu]=await Promise.all([C.balance(me,ZERO),hasU()?C.balance(me,U):0,C.minWithdraw(ZERO),hasU()?C.minWithdraw(U):0]);
+$("#rw").innerHTML=`<div class="card"><h3>Balance</h3><p>${fmt(ZERO,bb)} BOT (minimum ${fmt(ZERO,mb)})${hasU()?` · ${fmt(U,bu)} USDT (minimum ${fmt(U,mu)})`:""}</p><select id="wt"><option value="bot">BOT</option>${hasU()?'<option value="usdt">USDT</option>':""}</select><input id="wa" type="number" step="any" placeholder="Amount"><button class="ac" onclick="wd()">Request withdrawal</button></div>
 <div class="card scroll"><h3>My submissions</h3><table><tr><th>Survey</th><th>Status</th><th></th></tr>${rows||"<tr><td>No submissions yet</td></tr>"}</table></div>`}
-async function wd(){const t=$("#wt").value=="usdt"?U:ZERO;if(await tx(C.withdraw(t,pu(t,$("#wa").value))))loadRw()}
-async function adm(){const f=$("#af").value,b=$("#am").value,u=$("#au").value;if(f)await tx(C.setFee(+f));if(b)await tx(C.setMin(ZERO,pu(ZERO,b)));if(u)await tx(C.setMin(U,pu(U,u)))}
-function banUser(){tx(C.ban($("#ab").value.trim(),true))}
+async function wd(){if(!(+$("#wa").value>0))return toast("Enter an amount");const t=$("#wt").value=="usdt"?U:ZERO;if(await tx(C.withdraw(t,pu(t,$("#wa").value))))loadRw()}
+async function adm(){if(needWallet())return;const f=$("#af").value,b=$("#am").value,u=$("#au").value;if(f)await tx(C.setFee(+f));if(b)await tx(C.setMin(ZERO,pu(ZERO,b)));if(u)await tx(C.setMin(U,pu(U,u)))}
+function banUser(){const a=$("#ab").value.trim();if(!ethers.utils.isAddress(a))return toast("Enter a valid wallet address");tx(C.ban(a,true))}
 qrender();
+// ---- boot: read-only view of the mainnet contract, then silent wallet reconnect ----
+$("#cl").href=EXPLORER+"/address/"+ADDR;$("#cl").textContent=ADDR.slice(0,8)+"…"+ADDR.slice(-6);
+C=new ethers.Contract(ADDR,ABI,RP);tabs();
+(async()=>{try{U=await C.usdt();if(hasU())DEC=await new ethers.Contract(U,["function decimals() view returns(uint8)"],RP).decimals();
+else{document.querySelectorAll('#tok option[value=usdt]').forEach(o=>o.remove());document.querySelectorAll(".usdt-only").forEach(e=>e.style.display="none")}}catch(e){toast("Could not reach BOT Chain: "+cleanRevert(e).slice(0,80))}
+const h=location.hash.match(/^#s(\d+)$/);tab("explore");if(h)openS(+h[1]).catch(err);connect(true)})();
 </script></body></html>
